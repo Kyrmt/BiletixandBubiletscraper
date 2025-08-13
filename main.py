@@ -12,4 +12,3 @@ file_path = r"C:\Users\Kayra\Desktop\Napak\BiletixDatabase.csv"
 Biletix = BiletixScraper(file_path)
 links = Biletix.get_links()
 Biletix.scrape_data(links)
-Biletix.close()

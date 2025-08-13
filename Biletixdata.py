@@ -69,63 +69,93 @@ class BiletixScraper:
 
 
     def scrape_data(self, links):
-        klasor_yolu = r"C:\Users\Kayra\Desktop\Napak\Photos"
+        # klasor_yolu = r"C:\Users\Kayra\Desktop\Napak\Photos"
         all_data = []
+        bannedplaces = [
+        "Oran Açık Hava Sahnesi",
+        "Jolly Joker Ankara",
+        "Masterpiece Ankara",
+        "6:45 KK Ankara",
+        "Çukurambar Kültür ve Sanat",
+        "Congresium Ankara",
+        "IF Performance Hall",
+        "Şato Yazar Sahne",
+        "CerModern",
+        "Yenimahalle Nazım Hikmet KM",
+        "JW Marriott Hotel Ankara",
+        "Çayyolu Sahne",
+        "Masterpiece Ümitköy",
+        "Kinesis Stage & Art Space",
+        "Kulis Sanat Tiyatrosu Panora",
+        "Fade Stage & Coffee",
+        "Yıldız Kenter Tiyatro Salonu",
+        "CSO Ada Ankara Açıkhava",
+        "Kulüp Müjgan",
+        "Berlin Cafe Pub",
+        "Altı Üstü Bar",
+        "CSO Ada Ankara - Ana Salon",
+        "Route Ankara",
+        "Göksu Parkı",
+        "Çankaya Sahne",
+        "IF Performance Hall Tepe Prime",
+        "4 Mevsim Tiyatro Sln",
+        "Milyon Performance Hall Ankara",
+        "Erimtan Arkeoloji ve Sanat Müzesi",
+        "Actor Studio Panora AVM",
+        "Nergiz Gösteri Merkezi",
+        "Coffee Up Bahçelievler",
+        "Necmettin Erbakan Kongre Merkezi",
+        "ODTÜ MD Vişnelik Çim Amfi",
+        "Göksu No: 5 Sahne",
+        "Çağdaş Sanatlar Merkezi",
+        "Quito Coffee",
+        "Atılım Üniversitesi Amfi Tiyatro",
+        "Ankara Sanat Tiyatro",
+        "Yılmaz Güney Sahnesi",
+        "Yaşar Kemal Kültür ve Sanat Merkezi",
+        "Editör Dükkan",
+        "Gökyay Vakfı Satranç Müzesi",
+        "Ted Üniversitesi Kolej Kampüsü",
+        "Hill 151",
+        "Batıkent Meydan AVM Tiyatro Salonu",
+        "IF Performance Hall"
+]
+
         counter = 0
         for link in links:
-            counter += 1
+            
             try:
-                self.driver.set_page_load_timeout(5)
+                self.driver.set_page_load_timeout(15)  
+                time.sleep(0.9)  
                 self.driver.get(link)
-                
                 try:
-                 WebDriverWait(self.driver, 5).until(
-                    lambda driver: driver.find_element(By.CSS_SELECTOR, "div.desktop-event-media img.bg") or
-                            driver.find_element(By.CSS_SELECTOR, "div.mobile-event-media img")
-                    )
-                except:
+                    WebDriverWait(self.driver, 10).until(
+                        EC.presence_of_element_located((By.CLASS_NAME, "performance-listing")))
+                except Exception as e:
                     print(f"Timed out waiting for performance listings on {link}")
                     continue
-
-                time.sleep(0.3)
+                    
                 html = self.driver.page_source
                 soup = BeautifulSoup(html, "html.parser")
+                
                 h1 = soup.find("h1").text if soup.find("h1") else " "
+
+                if h1 in bannedplaces:
+                    continue
+
+                map_ = soup.find("div", class_="performance-listing-venue").text if soup.find("div", class_="performance-listing-venue") else " "
                 org_id = uuid.uuid4()
-                dosya_yolu = os.path.join(klasor_yolu, f"{org_id}.jpg")
-                img_tag = soup.select_one("div.desktop-event-media img.bg")
-
-                if not img_tag:
-                    img_tag = soup.select_one("div.mobile-event-media img")
-                print(img_tag)
-        
-                if img_tag and img_tag.has_attr("src"):
-                    img_url = img_tag["src"]
-                    if img_url.startswith("/"):
-                        img_url = "https://www.biletix.com" + img_url  
-                else:
-                    print("Görsel bulunamadı")
-                try:
-                    img_data = requests.get(img_url, timeout=10).content
-                    with open(dosya_yolu, 'wb') as f:
-                                f.write(img_data)
-                except Exception as e:
-                  print(f"Görsel kaydedilemedi: {e}")
-        
                 for div in soup.find_all("div", class_="performance-listing"):
-                    icon = div.find('mat-icon')
-                    icon_text = icon.text.strip() if icon else ""
-                    if icon_text == "calendar_month":
+                    if div.find("mat-icon"):  
                         continue
-
-                    map_ = soup.find("div", class_="performance-listing-venue").text if soup.find("div", class_="performance-listing-venue") else " "
+                    hour_div = div.find("div", class_="info-group")
+                    hour = hour_div.find("span","time ng-star-inserted").text if  hour_div.find("span","time ng-star-inserted") else ""
                     day = div.find("span", class_="day").text if div.find("span", class_="day") else " "
                     month = div.find("span", class_="month").text if div.find("span", class_="month") else " "
-                    hour = soup.find("span", class_="time ng-star-inserted").text if soup.find("span", class_="time ng-star-inserted") else ""
                     name = div.find("span", class_="event-name").text if div.find("span", class_="event-name") else " "
-
-                    print(f"Kaydedilen: {name} | {day} {month} {hour} | {map_} | {org_id} ")
-
+                    
+                    print(f"Kaydedilen: {name} | {day} {month} {hour} | {map_} | {org_id}")
+                    
                     new_data = {
                         'Day': day,
                         'Month': month,
@@ -138,8 +168,9 @@ class BiletixScraper:
                         'website': "Biletix"
                     }
                     all_data.append(new_data)
-
+                    counter += 1
                 if counter >= 40:
+                    self.driver.quit()
                     break
             except Exception as e:
                 print(f"Error processing {link}: {e}")
@@ -149,5 +180,3 @@ class BiletixScraper:
         df.to_csv(self.file_path, mode='w', header=True, index=False, encoding='utf-8-sig')
         df.to_excel(self.file_path.replace(".csv", ".xlsx"), index=False, engine='openpyxl')
 
-    def close(self):
-        self.driver.quit()
