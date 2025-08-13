@@ -1,1 +1,2 @@
-        driver.get(link)
+
+Bubilet.close()
